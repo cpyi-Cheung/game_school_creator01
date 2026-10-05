@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校園尋寶任務設定｜一鍵生成 AI 提示詞</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+    background: linear-gradient(160deg, #79c9f5 0%, #dff3ff 45%, #84cc63 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 32px 16px 64px;
+    color: #1a2b4a;
+  }
+
+  .container {
+    width: min(100%, 880px);
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 28px;
+    box-shadow: 0 20px 60px rgba(18, 38, 70, 0.25);
+    padding: 36px 32px 44px;
+    border: 4px solid #ffd43b;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: clamp(26px, 5vw, 40px);
+    color: #e8590c;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: clamp(15px, 2.6vw, 18px);
+    color: #1971c2;
+    margin-bottom: 32px;
+    font-weight: 600;
+  }
+
+  .section {
+    background: #f8faff;
+    border-radius: 20px;
+    padding: 22px 22px 18px;
+    margin-bottom: 24px;
+    border: 2px solid #d0ebff;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1864ab;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title .num {
+    background: #4dabf7;
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ---------- 勾選卡片 ---------- */
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .item-card {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .item-card input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .item-card .card-body {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 3px solid #dee2e6;
+    border-radius: 16px;
+    padding: 12px 14px;
+    transition: all 0.18s ease;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .item-card .emoji {
+    font-size: 26px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .item-card:hover .card-body {
+    border-color: #74c0fc;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(77, 171, 247, 0.25);
+  }
+
+  .item-card input:checked + .card-body {
+    border-color: #37b24d;
+    background: #ebfbee;
+    box-shadow: 0 0 0 3px rgba(55, 178, 77, 0.18);
+  }
+
+  .item-card input:checked + .card-body::after {
+    content: "✓";
+    margin-left: auto;
+    color: #37b24d;
+    font-size: 20px;
+    font-weight: 900;
+  }
+
+  .item-card input:focus-visible + .card-body {
+    outline: 3px solid #4dabf7;
+    outline-offset: 2px;
+  }
+
+  /* ---------- 下拉選單 ---------- */
+  .field-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-weight: 800;
+    font-size: 15px;
+    color: #343a40;
+  }
+
+  select, input[type="text"], input[type="number"], textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 3px solid #dee2e6;
+    font-size: 16px;
+    font-family: inherit;
+    font-weight: 600;
+    color: #1a2b4a;
+    background: #fff;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: #4dabf7;
+    box-shadow: 0 0 0 4px rgba(77, 171, 247, 0.18);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
+
+  /* ---------- 自由輸入 ---------- */
+  .custom-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .custom-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .custom-row input[type="text"] {
+    flex: 1;
+  }
+
+  .custom-row input[type="number"] {
+    width: 92px;
+    flex-shrink: 0;
+    text-align: center;
+  }
+
+  .btn-remove {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 12px;
+    background: #ffe3e3;
+    color: #e03131;
+    font-size: 22px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .btn-remove:hover {
+    background: #ffc9c9;
+    transform: scale(1.06);
+  }
+
+  .btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border: 3px dashed #4dabf7;
+    border-radius: 14px;
+    background: #e7f5ff;
+    color: #1864ab;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .btn-add:hover {
+    background: #d0ebff;
+    transform: translateY(-2px);
+  }
+
+  /* ---------- 大按鈕 ---------- */
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    margin-top: 28px;
+  }
+
+  .btn-main {
+    padding: 18px 44px;
+    border: none;
+    border-radius: 20px;
+    font-size: 22px;
+    font-weight: 900;
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+
+  .btn-play {
+    background: linear-gradient(180deg, #51cf66, #37b24d);
+    box-shadow: 0 8px 0 #2b8a3e, 0 12px 24px rgba(43, 138, 62, 0.35);
+  }
+
+  .btn-play:hover {
+    filter: brightness(1.07);
+    transform: translateY(-3px);
+    box-shadow: 0 11px 0 #2b8a3e, 0 16px 30px rgba(43, 138, 62, 0.4);
+  }
+
+  .btn-play:active {
+    transform: translateY(3px);
+    box-shadow: 0 5px 0 #2b8a3e;
+  }
+
+  .btn-reset {
+    background: linear-gradient(180deg, #ffa94d, #f76707);
+    box-shadow: 0 8px 0 #d9480f, 0 12px 24px rgba(217, 72, 15, 0.32);
+  }
+
+  .btn-reset:hover {
+    filter: brightness(1.07);
+    transform: translateY(-3px);
+    box-shadow: 0 11px 0 #d9480f, 0 16px 30px rgba(217, 72, 15, 0.38);
+  }
+
+  .btn-reset:active {
+    transform: translateY(3px);
+    box-shadow: 0 5px 0 #d9480f;
+  }
+
+  /* ---------- 結果摘要 ---------- */
+  .summary {
+    margin-top: 28px;
+    background: #fff9db;
+    border: 3px solid #ffd43b;
+    border-radius: 20px;
+    padding: 20px 22px;
+    display: none;
+  }
+
+  .summary.show { display: block; animation: pop 0.3s ease; }
+
+  @keyframes pop {
+    0% { transform: scale(0.96); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .summary h3 {
+    color: #e8590c;
+    font-size: 22px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .summary-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .summary-item {
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 15px;
+    border: 2px solid #ffe066;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .summary-item .count {
+    color: #e8590c;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .summary-empty {
+    text-align: center;
+    color: #868e96;
+    font-weight: 700;
+    padding: 12px;
+  }
+
+  /* ---------- 提示詞區塊 ---------- */
+  .prompt-section {
+    margin-top: 24px;
+    background: #1a2b4a;
+    border-radius: 20px;
+    padding: 22px;
+    display: none;
+  }
+
+  .prompt-section.show { display: block; animation: pop 0.3s ease; }
+
+  .prompt-section h3 {
+    color: #ffd43b;
+    font-size: 22px;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .prompt-section .prompt-hint {
+    color: #a5d8ff;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .prompt-box {
+    background: #0d1b2e;
+    border: 3px solid #4dabf7;
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: #e7f5ff;
+    font-family: "SF Mono", "Consolas", "Monaco", monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 380px;
+    overflow-y: auto;
+    margin-bottom: 14px;
+  }
+
+  .prompt-box::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .prompt-box::-webkit-scrollbar-track {
+    background: #1a2b4a;
+    border-radius: 6px;
+  }
+
+  .prompt-box::-webkit-scrollbar-thumb {
+    background: #4dabf7;
+    border-radius: 6px;
+  }
+
+  .copy-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn-copy {
+    flex: 1;
+    min-width: 220px;
+    padding: 16px 32px;
+    border: none;
+    border-radius: 16px;
+    font-size: 20px;
+    font-weight: 900;
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(180deg, #4dabf7, #1971c2);
+    box-shadow: 0 7px 0 #1864ab, 0 10px 22px rgba(25, 113, 194, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    letter-spacing: 1px;
+  }
+
+  .btn-copy:hover {
+    filter: brightness(1.1);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 0 #1864ab, 0 14px 28px rgba(25, 113, 194, 0.45);
+  }
+
+  .btn-copy:active {
+    transform: translateY(3px);
+    box-shadow: 0 4px 0 #1864ab;
+  }
+
+  .btn-copy.copied {
+    background: linear-gradient(180deg, #51cf66, #2b8a3e);
+    box-shadow: 0 7px 0 #237032, 0 10px 22px rgba(43, 138, 62, 0.4);
+  }
+
+  .btn-copy.copied:hover {
+    box-shadow: 0 10px 0 #237032, 0 14px 28px rgba(43, 138, 62, 0.45);
+  }
+
+  /* ---------- 提示 ---------- */
+  .hint {
+    font-size: 14px;
+    color: #868e96;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 560px) {
+    .container { padding: 24px 16px 34px; border-radius: 20px; }
+    .section { padding: 18px 14px 14px; }
+    .btn-main { width: 100%; padding: 16px 20px; font-size: 19px; }
+    .item-grid { grid-template-columns: 1fr 1fr; }
+    .item-card .card-body { font-size: 14px; padding: 10px 10px; }
+    .item-card .emoji { font-size: 22px; }
+    .btn-copy { min-width: 100%; font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1>🎒 校園尋寶任務設定</h1>
+  <p class="subtitle">選一選、填一填，一鍵生成 AI 提示詞，馬上做出自己的遊戲！</p>
+
+  <!-- ========== 1. 勾選收集物品 ========== -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span>我想收集這些物品（可多選）</div>
+    <div class="item-grid" id="itemGrid">
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="星星" data-emoji="⭐" data-default="10" data-points="10" checked>
+        <div class="card-body"><span class="emoji">⭐</span>星星</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="課本" data-emoji="📚" data-default="5" data-points="20" checked>
+        <div class="card-body"><span class="emoji">📚</span>課本</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="鉛筆" data-emoji="✏️" data-default="6" data-points="15">
+        <div class="card-body"><span class="emoji">✏️</span>鉛筆</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="橡皮擦" data-emoji="🧽" data-default="4" data-points="15">
+        <div class="card-body"><span class="emoji">🧽</span>橡皮擦</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="蘋果" data-emoji="🍎" data-default="3" data-points="25">
+        <div class="card-body"><span class="emoji">🍎</span>蘋果</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="足球" data-emoji="⚽" data-default="2" data-points="30">
+        <div class="card-body"><span class="emoji">⚽</span>足球</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="水壺" data-emoji="💧" data-default="3" data-points="15">
+        <div class="card-body"><span class="emoji">💧</span>水壺</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="彩虹貼紙" data-emoji="🌈" data-default="5" data-points="10">
+        <div class="card-body"><span class="emoji">🌈</span>彩虹貼紙</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="小蛋糕" data-emoji="🧁" data-default="3" data-points="20">
+        <div class="card-body"><span class="emoji">🧁</span>小蛋糕</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="氣球" data-emoji="🎈" data-default="4" data-points="15">
+        <div class="card-body"><span class="emoji">🎈</span>氣球</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="鉛筆盒" data-emoji="🖍️" data-default="2" data-points="25">
+        <div class="card-body"><span class="emoji">🖍️</span>鉛筆盒</div>
+      </label>
+
+      <label class="item-card">
+        <input type="checkbox" name="items" value="金牌" data-emoji="🏅" data-default="1" data-points="50">
+        <div class="card-body"><span class="emoji">🏅</span>金牌</div>
+      </label>
+
+    </div>
+    <p class="hint">💡 打勾就代表遊戲中會出現這個物品。</p>
+  </div>
+
+  <!-- ========== 2. 遊戲規則 ========== -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span>遊戲規則</div>
+    <div class="field-row">
+
+      <div class="field">
+        <label for="gameTime">⏱️ 遊戲時間</label>
+        <select id="gameTime">
+          <option value="30">30 秒（挑戰）</option>
+          <option value="60" selected>60 秒（標準）</option>
+          <option value="90">90 秒（輕鬆）</option>
+          <option value="120">120 秒（慢活）</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="difficulty">🎯 困難度</label>
+        <select id="difficulty">
+          <option value="easy">簡單（垃圾桶慢）</option>
+          <option value="normal" selected>普通（標準速度）</option>
+          <option value="hard">困難（垃圾桶快）</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="binCount">🗑️ 垃圾桶數量</label>
+        <select id="binCount">
+          <option value="1">1 個</option>
+          <option value="2">2 個</option>
+          <option value="3" selected>3 個</option>
+          <option value="4">4 個</option>
+          <option value="5">5 個</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="penalty">💥 撞到垃圾桶扣分</label>
+        <select id="penalty">
+          <option value="0">不扣分</option>
+          <option value="5" selected>扣 5 分</option>
+          <option value="10">扣 10 分</option>
+          <option value="15">扣 15 分</option>
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== 3. 自由輸入 ========== -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span>自己新增想要的物品</div>
+
+    <div class="custom-list" id="customList"></div>
+
+    <button type="button" class="btn-add" id="btnAdd">➕ 新增一個物品</button>
+    <p class="hint">💡 可以輸入任何你喜歡的東西，例如：小餅乾、彈珠、楓葉……</p>
+  </div>
+
+  <!-- ========== 4. 個人偏好 ========== -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span>我還想說……</div>
+
+    <div class="field-row" style="margin-bottom: 14px;">
+      <div class="field">
+        <label for="playerName">🙋 我的名字（選填）</label>
+        <input type="text" id="playerName" placeholder="例如：小明" maxlength="12">
+      </div>
+
+      <div class="field">
+        <label for="bgm">🎵 背景音樂</label>
+        <select id="bgm">
+          <option value="on" selected>要播放輕快音樂</option>
+          <option value="off">安靜一點，不要音樂</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="wish">✨ 我對這個尋寶遊戲的期待（選填）</label>
+      <textarea id="wish" placeholder="例如：希望有很多星星、希望垃圾桶不要太多……"></textarea>
+    </div>
+  </div>
+
+  <!-- ========== 按鈕 ========== -->
+  <div class="actions">
+    <button type="button" class="btn-main btn-play" id="btnSubmit">🎮 產生我的尋寶任務</button>
+    <button type="button" class="btn-main btn-reset" id="btnReset">🔄 重設全部</button>
+  </div>
+
+  <!-- ========== 結果摘要 ========== -->
+  <div class="summary" id="summary">
+    <h3>✅ 你的尋寶任務設定完成！</h3>
+    <div class="summary-list" id="summaryList"></div>
+  </div>
+
+  <!-- ========== AI 提示詞 ========== -->
+  <div class="prompt-section" id="promptSection">
+    <h3>🤖 你的 AI 提示詞已生成！</h3>
+    <p class="prompt-hint">複製下面的文字，貼到 AI 對話框，就能生成你的專屬尋寶遊戲代碼。</p>
+    <div class="prompt-box" id="promptBox"></div>
+    <div class="copy-row">
+      <button type="button" class="btn-copy" id="btnCopy">📋 一鍵複製提示詞</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const itemGrid    = document.getElementById('itemGrid');
+  const customList  = document.getElementById('customList');
+  const btnAdd      = document.getElementById('btnAdd');
+  const btnSubmit   = document.getElementById('btnSubmit');
+  const btnReset    = document.getElementById('btnReset');
+  const summary     = document.getElementById('summary');
+  const summaryList = document.getElementById('summaryList');
+  const promptSection = document.getElementById('promptSection');
+  const promptBox   = document.getElementById('promptBox');
+  const btnCopy     = document.getElementById('btnCopy');
+
+  /* ---------- 動態新增自訂物品列 ---------- */
+  let customId = 0;
+
+  function addCustomRow(name, count) {
+    customId++;
+    const row = document.createElement('div');
+    row.className = 'custom-row';
+    row.innerHTML =
+      '<input type="text" class="custom-name" placeholder="物品名稱，例如：彈珠" maxlength="16" value="' + (name || '') + '">' +
+      '<input type="number" class="custom-count" min="1" max="20" value="' + (count || 3) + '" title="數量">' +
+      '<button type="button" class="btn-remove" title="刪除這個物品">✕</button>';
+
+    row.querySelector('.btn-remove').addEventListener('click', function () {
+      row.remove();
+    });
+
+    customList.appendChild(row);
+  }
+
+  addCustomRow('', 3);
+
+  btnAdd.addEventListener('click', function () {
+    addCustomRow('', 3);
+    const rows = customList.querySelectorAll('.custom-row');
+    const last = rows[rows.length - 1];
+    if (last) last.querySelector('.custom-name').focus();
+  });
+
+  /* ---------- 收集所有設定 ---------- */
+  function collectSettings() {
+    const entries = [];
+
+    // 勾選的物品
+    itemGrid.querySelectorAll('input[name="items"]:checked').forEach(function (cb) {
+      entries.push({
+        emoji: cb.dataset.emoji || '📦',
+        name: cb.value,
+        count: parseInt(cb.dataset.default, 10) || 1,
+        points: parseInt(cb.dataset.points, 10) || 10,
+        source: '勾選'
+      });
+    });
+
+    // 自訂輸入的物品
+    customList.querySelectorAll('.custom-row').forEach(function (row) {
+      const name = row.querySelector('.custom-name').value.trim();
+      const count = parseInt(row.querySelector('.custom-count').value, 10) || 1;
+      if (name) {
+        entries.push({
+          emoji: '✨',
+          name: name,
+          count: count,
+          points: 15, // 自訂物品預設 15 分
+          source: '自行輸入'
+        });
+      }
+    });
+
+    const gameTime   = document.getElementById('gameTime');
+    const difficulty = document.getElementById('difficulty');
+    const binCount   = document.getElementById('binCount');
+    const penalty    = document.getElementById('penalty');
+    const playerName = document.getElementById('playerName').value.trim();
+    const bgm        = document.getElementById('bgm');
+    const wish       = document.getElementById('wish').value.trim();
+
+    return {
+      entries: entries,
+      gameTime: gameTime.value,
+      gameTimeText: gameTime.options[gameTime.selectedIndex].text,
+      difficulty: difficulty.value,
+      difficultyText: difficulty.options[difficulty.selectedIndex].text,
+      binCount: binCount.value,
+      binCountText: binCount.options[binCount.selectedIndex].text,
+      penalty: penalty.value,
+      penaltyText: penalty.options[penalty.selectedIndex].text,
+      playerName: playerName,
+      bgm: bgm.value,
+      bgmText: bgm.options[bgm.selectedIndex].text,
+      wish: wish
+    };
+  }
+
+  /* ---------- 產生摘要 ---------- */
+  function buildSummary(settings) {
+    summaryList.innerHTML = '';
+
+    if (settings.entries.length === 0) {
+      summaryList.innerHTML =
+        '<div class="summary-empty">還沒有選擇任何物品，請至少勾選或輸入一項！</div>';
+    } else {
+      settings.entries.forEach(function (e) {
+        const div = document.createElement('div');
+        div.className = 'summary-item';
+        div.innerHTML =
+          '<span>' + e.emoji + ' ' + e.name + ' <small style="color:#868e96;">(' + e.source + ')</small></span>' +
+          '<span class="count">' + e.count + ' 個</span>';
+        summaryList.appendChild(div);
+      });
+    }
+
+    const rules = [
+      '⏱️ 時間：' + settings.gameTimeText,
+      '🎯 難度：' + settings.difficultyText,
+      '🗑️ 垃圾桶：' + settings.binCountText,
+      '💥 碰撞扣分：' + settings.penaltyText,
+      '🎵 音樂：' + settings.bgmText
+    ];
+
+    if (settings.playerName) rules.push('🙋 玩家：' + settings.playerName);
+    if (settings.wish) rules.push('✨ 期待：' + settings.wish);
+
+    rules.forEach(function (r) {
+      const div = document.createElement('div');
+      div.className = 'summary-item';
+      div.style.gridColumn = '1 / -1';
+      div.style.background = '#f1f3f5';
+      div.style.borderColor = '#dee2e6';
+      div.innerHTML = '<span>' + r + '</span>';
+      summaryList.appendChild(div);
+    });
+
+    summary.classList.add('show');
+  }
+
+  /* ---------- 產生 AI 提示詞 ---------- */
+  function buildPrompt(settings) {
+    const items = settings.entries;
+
+    // 物品清單文字
+    let itemLines = '';
+    if (items.length === 0) {
+      itemLines = '（學生尚未選擇任何物品，請預設為星星 10 個、課本 5 本）';
+    } else {
+      items.forEach(function (e) {
+        itemLines += '- ' + e.emoji + ' ' + e.name + '：' + e.count + ' 個，每個 ' + e.points + ' 分\n';
+      });
+    }
+
+    // 難度對應的垃圾桶速度說明
+    let binSpeed = '中等速度（每秒約 100 像素）';
+    if (settings.difficulty === 'easy') binSpeed = '慢速（每秒約 60 像素）';
+    if (settings.difficulty === 'hard') binSpeed = '快速（每秒約 160 像素）';
+
+    // 碰撞扣分
+    const penaltyText = settings.penalty === '0'
+      ? '撞到垃圾桶不扣分，只會暫時閃爍'
+      : '撞到垃圾桶扣 ' + settings.penalty + ' 分，並有 1.5 秒無敵時間';
+
+    // 玩家名稱
+    const nameText = settings.playerName
+      ? '玩家名字是「' + settings.playerName + '」，請顯示在畫面上。'
+      : '';
+
+    // 額外期待
+    const wishText = settings.wish
+      ? '\n學生額外的期待：' + settings.wish + '\n請盡量把這個期待融入遊戲設計中。'
+      : '';
+
+    // 音樂
+    const musicText = settings.bgm === 'on'
+      ? '請加入輕快的背景音樂（可用 Web Audio API 即時合成），以及收集成功的「叮」聲。'
+      : '請不要加入背景音樂，但保留收集成功的音效。';
+
+    const prompt =
+'請幫我寫一個完整的 HTML 遊戲，主題是「校園尋寶大冒險」，' +
+'用一個 HTML 檔案包含 CSS 和 JavaScript，可以直接在瀏覽器執行。\n\n' +
+
+'【遊戲畫面】\n' +
+'卡通風格，背景是學校操場，要有藍天、白雲、大樹和課室建築。' +
+'整體顏色明亮、可愛，適合小學生。\n\n' +
+
+'【玩家角色】\n' +
+'一個背着書包的小學生，用滑鼠點擊移動，也可以用方向鍵或 WASD 控制。' +
+nameText + '\n\n' +
+
+'【收集物品】\n' +
+'遊戲時間 ' + settings.gameTime + ' 秒，學生要在時間內收集以下物品：\n' +
+itemLines +
+'\n每收集一個物品就加分，並顯示「+分數」的飄浮文字和彩色粒子特效。\n\n' +
+
+'【躲避物件】\n' +
+'畫面中有 ' + settings.binCount + ' 個會左右移動的垃圾桶，速度是' + binSpeed + '。\n' +
+penaltyText + '，並播放柔和的提示音（不要恐怖或暴力的音效）。\n\n' +
+
+'【遊戲介面】\n' +
+'畫面上方用大字顯示目前分數和剩餘時間，也要顯示每種物品的收集進度（例如 3/10）。\n' +
+'按鈕要大、顏色清楚，適合小學生操作。\n\n' +
+
+'【結束條件】\n' +
+'時間到，或收集完所有物品就結束。結束時顯示總分、收集成果，' +
+'以及一個大大的「再玩一次」按鈕。\n\n' +
+
+'【音效】\n' +
+musicText + '\n\n' +
+
+'【其他】\n' +
+'請不要有暴力、恐怖或複雜的內容。' +
+wishText;
+
+    return prompt;
+  }
+
+  /* ---------- 主按鈕：產生任務 ---------- */
+  btnSubmit.addEventListener('click', function () {
+    const settings = collectSettings();
+
+    buildSummary(settings);
+
+    const prompt = buildPrompt(settings);
+    promptBox.textContent = prompt;
+    promptSection.classList.add('show');
+
+    // 重設複製按鈕狀態
+    btnCopy.classList.remove('copied');
+    btnCopy.textContent = '📋 一鍵複製提示詞';
+
+    // 滾動到提示詞區塊
+    setTimeout(function () {
+      promptSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  });
+
+  /* ---------- 複製提示詞 ---------- */
+  btnCopy.addEventListener('click', function () {
+    const text = promptBox.textContent;
+
+    function onSuccess() {
+      btnCopy.classList.add('copied');
+      btnCopy.textContent = '✅ 已複製！貼到 AI 就能生成遊戲';
+      setTimeout(function () {
+        btnCopy.classList.remove('copied');
+        btnCopy.textContent = '📋 一鍵複製提示詞';
+      }, 2600);
+    }
+
+    function onFail() {
+      // 備援：選取文字，請使用者手動複製
+      const range = document.createRange();
+      range.selectNodeContents(promptBox);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btnCopy.textContent = '⚠️ 請按 Ctrl+C 手動複製';
+      setTimeout(function () {
+        btnCopy.textContent = '📋 一鍵複製提示詞';
+      }, 2600);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onSuccess).catch(function () {
+        // 再試一次舊方法
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (ok) onSuccess(); else onFail();
+        } catch (err) {
+          onFail();
+        }
+      });
+    } else {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) onSuccess(); else onFail();
+      } catch (err) {
+        onFail();
+      }
+    }
+  });
+
+  /* ---------- 重設 ---------- */
+  btnReset.addEventListener('click', function () {
+    itemGrid.querySelectorAll('input[name="items"]').forEach(function (cb) {
+      cb.checked = (cb.value === '星星' || cb.value === '課本');
+    });
+
+    customList.innerHTML = '';
+    addCustomRow('', 3);
+
+    document.getElementById('gameTime').value = '60';
+    document.getElementById('difficulty').value = 'normal';
+    document.getElementById('binCount').value = '3';
+    document.getElementById('penalty').value = '5';
+    document.getElementById('playerName').value = '';
+    document.getElementById('bgm').value = 'on';
+    document.getElementById('wish').value = '';
+
+    summary.classList.remove('show');
+    promptSection.classList.remove('show');
+    summaryList.innerHTML = '';
+    promptBox.textContent = '';
+    btnCopy.classList.remove('copied');
+    btnCopy.textContent = '📋 一鍵複製提示詞';
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+})();
+</script>
+</body>
+</html>
